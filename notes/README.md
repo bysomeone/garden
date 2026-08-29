@@ -8,6 +8,9 @@
   - [RGB 协议与 sidecar 方案导读](tech/rgb/rgb-sidecar-guide)
 - **finance** — 宏观经济与货币体系
   - [布雷顿森林体系3.0：Zoltan Pozsar 的全球货币秩序新叙事](finance/bretton-woods-iii)
+- **tools** — 工具与 AI 方法论
+  - [Claude 工具储备清单](tools/claude-tools-reserve)
+  - [EnvSnapshot：AI 时代的环境快照备份法](tools/env-snapshot)
 
 ## 说明
 
