@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RGB sidecar 导读</title>
+<meta name="description" content="RGB 协议原理与 Rust sidecar 方案：技术与非技术都能看懂的跨链桥说明">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+  :root {
+    --bg: #F7F4EF;
+    --ink: #23272E;
+    --muted: #6B7078;
+    --line: #E3DED4;
+    --accent: #F7931A;
+    --accent-ink: #7A3B00;
+    --card: #EFEAE2;
+    --card-ink: #2B2F36;
+    --mono-bg: #ECE7DE;
+    --mono-ink: #2B2F36;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16191E;
+      --ink: #E7E4DE;
+      --muted: #9AA0A8;
+      --line: #2A2F37;
+      --accent: #F7A93B;
+      --accent-ink: #FFC36B;
+      --card: #1D2127;
+      --card-ink: #EDEAE4;
+      --mono-bg: #1B1F25;
+      --mono-ink: #E7E4DE;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16191E;
+    --ink: #E7E4DE;
+    --muted: #9AA0A8;
+    --line: #2A2F37;
+    --accent: #F7A93B;
+    --accent-ink: #FFC36B;
+    --card: #1D2127;
+    --card-ink: #EDEAE4;
+    --mono-bg: #1B1F25;
+    --mono-ink: #E7E4DE;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif;
+    font-size: 17px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 72px 28px 96px;
+  }
+  /* header */
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: 'Zilla Slab', 'Noto Serif SC', serif;
+    font-weight: 700;
+    font-size: clamp(34px, 6vw, 52px);
+    line-height: 1.12;
+    margin: 0 0 18px;
+    text-wrap: balance;
+    letter-spacing: -.01em;
+  }
+  .lede {
+    font-size: 19px;
+    color: var(--muted);
+    margin: 0 0 30px;
+    max-width: 60ch;
+    text-wrap: balance;
+  }
+  .meta {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 56px;
+    font-size: 13.5px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', 'Noto Sans SC', monospace;
+  }
+  /* sections */
+  section { margin: 56px 0; }
+  h2 {
+    font-family: 'Zilla Slab', 'Noto Serif SC', serif;
+    font-weight: 600;
+    font-size: 27px;
+    line-height: 1.25;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  .secnum {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: .16em;
+    color: var(--accent-ink);
+    margin-bottom: 10px;
+  }
+  h3 {
+    font-family: 'Zilla Slab', 'Noto Serif SC', serif;
+    font-weight: 600;
+    font-size: 20px;
+    margin: 34px 0 10px;
+    text-wrap: balance;
+  }
+  p { margin: 0 0 16px; max-width: 66ch; }
+  strong { color: var(--ink); font-weight: 600; }
+  em { color: var(--accent-ink); font-style: normal; font-weight: 500; }
+  /* blockquote as the "核心思想" pull */
+  blockquote {
+    margin: 26px 0;
+    padding: 20px 24px;
+    background: var(--card);
+    color: var(--card-ink);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+    font-size: 17px;
+  }
+  blockquote p { margin: 0 0 8px; }
+  blockquote p:last-child { margin: 0; }
+  /* tables */
+  .table-scroll { overflow-x: auto; margin: 22px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    min-width: 540px;
+  }
+  thead th {
+    text-align: left;
+    font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--accent);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { font-weight: 600; white-space: nowrap; }
+  /* mono diagram */
+  .diagram {
+    margin: 26px 0;
+    background: var(--mono-bg);
+    color: var(--mono-ink);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px 24px;
+    overflow-x: auto;
+    font-family: 'IBM Plex Mono', 'Noto Sans SC', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  pre { margin: 0; }
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: .86em;
+    background: var(--mono-bg);
+    color: var(--mono-ink);
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  ul, ol { padding-left: 22px; margin: 0 0 16px; max-width: 66ch; }
+  li { margin: 6px 0; }
+  /* footer */
+  .foot {
+    margin-top: 72px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">跨链桥 · 技术与非技术通读版</p>
+  <h1>RGB 协议与 sidecar 方案</h1>
+  <p class="lede">在已了解 Chain33 BTC 跨链桥的基础上，导读 RGB 协议怎么运作、以及为什么用一个 Rust sidecar 来做跨链集成。</p>
+  <div class="meta">
+    <span>对象：桥团队成员</span>
+    <span>阅读时长：约 8 分钟</span>
+    <span>状态：方案导读</span>
+  </div>
+
+  <section>
+    <span class="secnum">01 · 一句话总结</span>
+    <p>RGB 是一种“把资产账本搬下链”的方案：<strong>比特币链上只存一个极小的“承诺”（指纹），真正的资产账本在参与者的软件里各自维护、互相验证</strong>。我们要做的跨链桥，本质是“帮 Chain33 学会验证 RGB 的账本”——而这个验证逻辑在 Rust 生态里最成熟，所以用一个 Rust 小进程（sidecar）专门干这件事。</p>
+  </section>
+
+  <section>
+    <span class="secnum">02 · RGB 协议到底是什么</span>
+    <h2>一个常见理解：seal UTXO 确实是最核心的</h2>
+    <p>对 RGB 的一个常见印象是“RGB 就是一个 seal UTXO”，这个印象方向正确。在 RGB 里，资产的所有权确实锚定在一个比特币 UTXO 上——这个 UTXO 叫 <strong>seal（封印）</strong>：谁能花它，谁就拥有它封住的那笔资产；转账 = 花掉旧 seal、产生新 seal 落在收款人那里，资产跟着“搬家”。</p>
+    <p>但 seal UTXO 只是冰山一角。RGB 真正的难点在下面三点。</p>
+
+    <h3>核心思想：资产账本不在链上</h3>
+    <blockquote>
+      <p>资产账本 = 一份“私人的账本”，放在参与者的软件里；比特币只负责“盖章”（存一个哈希指纹），证明“账本的这次变动和某一笔链上交易是绑定的”。</p>
+    </blockquote>
+    <p>打个比方：比特币是一条大马路，人人都看得见；RGB 资产是马路两旁<strong>仓库里的存货</strong>——存货账本各自保管。每次存货变化，仓库主人在马路边贴一个<strong>指纹</strong>（哈希承诺），和某笔链上交易绑在一起；别人要看存货账对不对，需要把<strong>账本（consignment）</strong>给他看，他用指纹验证账本没问题。</p>
+    <p>这就是<strong>客户端验证（client-side validation）</strong>：资产真伪由参与的各方软件验证，而不是由比特币矿工验证。</p>
+
+    <h3>三个关键词，讲透 RGB</h3>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>概念</th><th>白话</th><th>技术名</th></tr></thead>
+      <tbody>
+        <tr><td>seal（封印）</td><td>一个装着“某笔资产所有权”的比特币 UTXO；谁能花它，谁拥有资产</td><td>single-use seal</td></tr>
+        <tr><td>承诺</td><td>贴进比特币交易里的“指纹”。两种贴法：OP_RETURN（opret，简单）或 Taproot 脚本（tapret，更强）</td><td>opret / tapret commitment</td></tr>
+        <tr><td>状态转移 + consignment</td><td>转账时钱包生成“文档”：从 seal A 转 X 个币到 seal B，跑一遍合约规则确认合法；指纹贴链上，全文直接发给对方</td><td>state transition / consignment</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>合约与 Schema：资产不是随便发的</h3>
+    <p>RGB 资产由一份<strong>合约</strong>定义，合约里的 <strong>Schema（模板）</strong>规定这类资产怎么运转：<strong>RGB20（IFA）</strong> 是同质化代币（如 USDT，固定精度、可增发）；<strong>UDA</strong> 是 NFT。每次转账，软件要执行 Schema 里定义的逻辑来校验——这个“执行逻辑”在 <strong>AluVM</strong> 虚拟机里跑，数据用 <strong>strict_types</strong> 编码。这两样加上校验规则本身，构成 RGB 的<strong>共识层</strong>——也是整件事最复杂、最难写对的部分。</p>
+
+    <h3>所以，“光看链上”为什么看不到 RGB 资产</h3>
+    <p>因为资产账本根本不在链上，链上只有一个哈希指纹。任何普通比特币浏览器上都看不到“某某地址有 1000 USDT”。要看，必须：拿到转账的 <strong>consignment</strong>，再用软件验证（跑 Schema 逻辑、核对 seal 链、核对链上指纹对得上）。</p>
+    <p>这也是对我们跨链桥最大的影响：<strong>充值进桥的钱，光靠“看比特币区块”认不出来，必须“收到 consignment + 跑验证”才能确认。</strong></p>
+  </section>
+
+  <section>
+    <span class="secnum">03 · 为什么需要 Rust sidecar</span>
+    <h2>集成 RGB = 学会验证链下数据</h2>
+    <p>我们现有的 BTC 桥是<strong>链上验证</strong>（看区块、验 SPV）。RGB 完全不同——它是<strong>链下验证</strong>：<strong>充值</strong>要收到用户的 consignment、跑客户端验证；<strong>提现</strong>要构造合法的状态转移（走 AluVM 执行、strict_types 编码）、锚进一笔比特币交易。而共识验证是最不能写错的东西——写错一点，就可能凭空铸造出没有实打实资产支撑的币，或把用户的钱卡住。</p>
+
+    <h3>RGB 生态没有 Go 库</h3>
+    <p>整个 RGB 生态的参考实现都是 Rust（共识、虚拟机、编码全是）。Go 生态没有现成可用的库。自己用 Go 从零写 = 约 1.5~2.5 万行，还要冒“和官方实现不一致”的共识风险。</p>
+
+    <h3>为什么不直接用现成的 RLN？</h3>
+    <p>我们认真评估过现成的 <strong>RLN（RGB Lightning Node）</strong>——Go 直接调它的 HTTP 接口，零 Rust 代码。但放弃了，三个硬伤：<strong>自持密钥</strong>（绕开 TSS 门限签名托管）、<strong>alpha 软件</strong>（官方声明不对资金损失负责）、<strong>官方只支持测试网</strong>（mainnet 要自己改代码）。</p>
+
+    <h3>所以：自己写一个小的 Rust sidecar</h3>
+    <p>sidecar = 一个独立的小 Rust 进程，专门负责“RGB 共识”：<strong>持有零私钥</strong>（watch-only，只看不签，所有签名都在 TSS 门限组）；对 Go 桥暴露 <strong>gRPC 接口</strong>（帮我验证这个 consignment / 帮我构造这笔提现）。就像一个“翻译官”：Go 说 Chain33 的话，Rust 说 RGB 的话， sidecar 在中间做翻译和校验。</p>
+  </section>
+
+  <section>
+    <span class="secnum">04 · 一个关键约束：TSS → 单脚本钱包</span>
+    <p>这里是我们方案里最特别、也最容易踩坑的一点。我们的托管底座是 <strong>TSS 门限签名</strong>（5 个节点凑够 3 个才能签名），而 <strong>TSS 组只有一个公钥，没法派生出一堆不同的子地址</strong>（没有 BIP32 的 chain code）。</p>
+    <p>但 RGB 生态的库习惯是<strong>每笔交易生成一个新地址</strong>（BIP32 派生）。如果 sidecar 用了“派生地址”，资产落在派生地址上，TSS 组<strong>签不了</strong>。</p>
+    <p>所以 sidecar 被“逼”成特殊形态：<strong>单脚本钱包</strong>——所有地址都锁死成 TSS 那一个 P2WPKH 脚本，零派生。</p>
+    <blockquote><p>这是整个方案的 make-or-break 点。<strong>Spike 1 已验证通过</strong>：<code>wpkh(TSS公钥)</code> 描述符能建出零派生的 watch-only 钱包，所有 seal 都落在 TSS 脚本上，TSS 能签。</p></blockquote>
+  </section>
+
+  <section>
+    <span class="secnum">05 · 整体架构</span>
+    <div class="diagram"><pre>
+用户(RGB钱包)          Bitcoin 链           sidecar(Rust, watch-only)     Go 桥(neutrino)        Chain33
+    │ 付 invoice          │                       │                        │                    │
+    ├──转账(带承诺)──────▶│───────────────────────▶│                        │                    │
+    ├──交付consignment────┼───────────────────────▶│ 客户端验证              │                    │
+    │                      │                       │ 确认资产到桥seal ──────▶│ 铸造 X.RGB20_USDT ─▶│
+    │                      │                       │                        │                    │
+    │◀──RGB转账到用户──────┼───────────────────────│◀──构造状态转移+PSBT─────│◀──用户发起提现─────│
+    │                      │◀────广播已签交易──────│◀──TSS签名──────────────│                    │
+</pre></div>
+    <p>一句话： sidecar 在中间，把“RGB 资产如何进出”翻译成 Go 桥能理解的操作；TSS 在底下把每一次花费都门限签名。</p>
+  </section>
+
+  <section>
+    <span class="secnum">06 · 两条核心链路</span>
+    <h3>充值（把 RGB 资产变成 Chain33 上的资产）</h3>
+    <ol>
+      <li>用户想要充值，桥发给他一个 <strong>RGB 收款单（invoice）</strong>（绑定某次充值请求）；</li>
+      <li>用户用 RGB 钱包付这个收款单——钱从用户的 seal 转到桥的 seal；</li>
+      <li>用户把 <strong>consignment</strong> 交给桥（上传或走 RGB 中转服务器）；</li>
+      <li>sidecar<strong>验证</strong> consignment：跑 Schema 逻辑、核对 seal 链、核对链上指纹，确认资产真的到了桥的 seal、金额正确；</li>
+      <li>确认无误后，Go 桥在 Chain33 上<strong>铸造等额的 X.RGB20_USDT</strong> 给用户。</li>
+    </ol>
+    <h3>提现（把 Chain33 资产变回 RGB 资产）</h3>
+    <ol>
+      <li>用户在 Chain33 发起提现，目标填他自己 RGB 钱包生成的 <strong>invoice</strong>；</li>
+      <li>Go 桥把提现请求交给 sidecar；</li>
+      <li>sidecar 构造<strong>状态转移 + 一笔未签名的比特币交易（PSBT）</strong>；</li>
+      <li><strong>TSS 门限组签名</strong>这笔交易的输入；</li>
+      <li>广播交易 → RGB 资产从桥的 seal 转到用户的 seal；</li>
+      <li>Chain33 上销毁等额的 X.RGB20_USDT。</li>
+    </ol>
+  </section>
+
+  <section>
+    <span class="secnum">07 · 关键决策一览</span>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>决策</th><th>为什么</th></tr></thead>
+      <tbody>
+        <tr><td>用 Rust sidecar，不自己用 Go 写 RGB</td><td>RGB 共识验证在 Rust 生态最成熟；Go 自写风险大、工作量大</td></tr>
+        <tr><td>不用现成 RLN</td><td>它自持密钥（绕开 TSS）、alpha、不支持 mainnet</td></tr>
+        <tr><td>sidecar watch-only（零私钥）</td><td>签名全部留在 TSS 门限组，安全底线不破</td></tr>
+        <tr><td>单脚本钱包（零派生）</td><td>TSS 只有一个公钥，派生子地址签不了（Spike 1 已验证）</td></tr>
+        <tr><td>充值走 per-request invoice</td><td>RGB 收款必须预先建好 receive，且天然解决“这笔充值归谁”</td></tr>
+        <tr><td>提现走 PSBT 外部签名</td><td>RGB 库构造交易，TSS 签名，两边各干各的、互不干扰</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <p class="foot">相关文档：技术方案 <code>RGB_USDT_INTEGRATION.md</code> · 产品方案 <code>RGB_USDT_PRODUCT.md</code> · 源码 <code>rgb-sidecar/</code></p>
+
+</div>
+</body>
+</html>

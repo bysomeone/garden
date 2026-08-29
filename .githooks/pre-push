@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# pre-push 钩子：garden push 前扫描（密钥 / 私密标记 / 大文件）
+# 用法：git config core.hooksPath .githooks
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+echo "[pre-push] 扫描中..."
+if python3 "$repo_root/tools/scan_secrets.py" "$repo_root"; then
+    echo "[pre-push] 通过，继续 push。"
+    exit 0
+else
+    echo "[pre-push] 已拦截。处理后再 push（可用 git push --no-verify 临时绕过，不推荐）。"
+    exit 1
+fi

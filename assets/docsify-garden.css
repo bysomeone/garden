@@ -1,0 +1,126 @@
+/* garden Docsify 主题 —— 移植自 rgb-sidecar-guide 的设计
+   暖纸/深墨双主题 + Bitcoin 橙 + Zilla Slab / IBM Plex 字体 */
+:root {
+  --bg: #F7F4EF;
+  --ink: #23272E;
+  --muted: #6B7078;
+  --line: #E3DED4;
+  --accent: #F7931A;
+  --accent-ink: #7A3B00;
+  --card: #EFEAE2;
+  --code-bg: #ECE7DE;
+  --sidebar-bg: #EFEAE2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #16191E;
+    --ink: #E7E4DE;
+    --muted: #9AA0A8;
+    --line: #2A2F37;
+    --accent: #F7A93B;
+    --accent-ink: #FFC36B;
+    --card: #1D2127;
+    --code-bg: #1B1F25;
+    --sidebar-bg: #1D2127;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #16191E; --ink: #E7E4DE; --muted: #9AA0A8; --line: #2A2F37;
+  --accent: #F7A93B; --accent-ink: #FFC36B; --card: #1D2127;
+  --code-bg: #1B1F25; --sidebar-bg: #1D2127;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', 'Noto Sans SC', -apple-system, sans-serif;
+}
+/* 侧边栏 */
+.sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--line);
+}
+.sidebar-toggle { background: var(--bg); }
+.sidebar ul li a { color: var(--ink); }
+.sidebar ul li a:hover { color: var(--accent); }
+.sidebar ul li.active > a { border-right: 2px solid var(--accent); color: var(--accent); }
+/* 内容 */
+.markdown-section {
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.7;
+}
+.markdown-section h1, h2, h3, h4 {
+  font-family: 'Zilla Slab', 'Noto Serif SC', serif;
+  color: var(--ink);
+  font-weight: 600;
+}
+.markdown-section h1 { font-size: 32px; border-bottom: 2px solid var(--accent); padding-bottom: 8px; }
+.markdown-section h2 { font-size: 24px; }
+.markdown-section h3 { font-size: 19px; }
+.markdown-section a { color: var(--accent-ink); }
+.markdown-section strong { color: var(--ink); }
+/* 表格 */
+.markdown-section table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 15px;
+}
+.markdown-section table th {
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  text-align: left;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: .04em;
+}
+.markdown-section table td {
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+}
+/* blockquote：类比/要点卡片 */
+.markdown-section blockquote {
+  background: var(--card);
+  color: var(--ink);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  margin: 20px 0;
+  padding: 16px 20px;
+}
+.markdown-section blockquote p { color: var(--ink); }
+/* 代码 */
+.markdown-section code {
+  font-family: 'IBM Plex Mono', monospace;
+  background: var(--code-bg);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: .9em;
+}
+.markdown-section pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.markdown-section pre code { background: transparent; color: var(--ink); }
+/* mermaid 图：Docsify 内容列窄，容器给最小高度，防横向图被压成一条细带 */
+.markdown-section .mermaid {
+  text-align: center;
+  margin: 24px 0;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+}
+.markdown-section .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+/* 列表 */
+.markdown-section li { margin: 4px 0; }
+/* repo 角标 / 搜索 */
+.github-corner svg { fill: var(--accent); color: var(--bg); }
+.markdown-section ::selection { background: var(--accent); color: var(--bg); }

@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# 本地临时/缓存
+*.tmp
+*.swp
+*~
+.cache/
+
+# 大文件与二进制（一般不应入库，白名单见 tools/allowlist.txt）
+*.zip
+*.tar
+*.gz
+*.7z
+*.rar
+*.exe
+*.dmg
+*.iso
+*.bin
+*.o
+*.a
+*.so
+*.dylib
+node_modules/
+
+# 私有草稿（如需本地草稿，放在 _drafts/ 并保持其不入库）
+_drafts/
