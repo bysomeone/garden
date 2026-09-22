@@ -6,6 +6,8 @@
 
 - **tech/rgb** — RGB 协议与 sidecar 跨链方案
   - [RGB 协议与 sidecar 方案导读](tech/rgb/rgb-sidecar-guide)
+- **tech/bityuan** — bityuan 节点运维与故障复盘
+  - [全节点磁盘写满：goleveldb 孤儿文件堆积](tech/bityuan/full-node-disk-full)
 - **finance** — 宏观经济与货币体系
   - [布雷顿森林体系3.0：Zoltan Pozsar 的全球货币秩序新叙事](finance/bretton-woods-iii)
 - **tools** — 工具与 AI 方法论
