@@ -4,11 +4,18 @@
 
 ## 一句话
 
-**一条命令在本地拉起一整套跨链网络**（chain33 主链 + 4 条平行链 + 一条 regtest 比特币链 + 一个 RGB 侧车），然后完整跑通“用户付 BTC → 链上到账 → 用户之间转账 → 提现回 BTC”。
+**一条命令在本地拉起一整套跨链网络**，然后完整跑通“用户付 BTC → 链上到账 → 用户之间转账 → 提现回 BTC”。
 
-打个比方：这相当于把交易所的出入金系统整个塞进一台笔记本。比特币链是真实的一条链（regtest，块自己挖），chain33 是记账那条链，中间那座桥由 4 个节点用**门限签名**共同掌管 —— 没有任何单个节点能单独动这笔钱。
+比喻：相当于把交易所的出入金系统整个塞进一台笔记本 —— 比特币链是真实的一条链（regtest 模式，块自己挖），chain33 是记账那条链，中间那座桥由 4 个节点用门限签名共同掌管。
 
-## 一、这套环境里有什么
+## 一、环境包含什么
+
+| 服务 | 角色 |
+|---|---|
+| `main` | chain33 主链，含 lightclient 执行器（BTC 区块头共识校验） |
+| `para1-4` | 4 条平行链，跨链桥与门限签名节点 |
+| `btcd` | 比特币全节点（regtest） |
+| `rgb-sidecar` | 桥在比特币侧的账本与交易构造 |
 
 ```mermaid
 flowchart TB
@@ -19,7 +26,7 @@ flowchart TB
     subgraph c33["chain33 侧"]
         main["main 主链<br/>8801 jrpc / 8802 grpc<br/>lightclient 执行器"]
         para["para1-4 平行链<br/>门限签名节点<br/>桥跑在这里"]
-        sidecar["rgb-sidecar<br/>桥在 BTC 侧的账本与交易构造"]
+        sidecar["rgb-sidecar<br/>50061 gRPC / 50064 test-sim"]
     end
 
     user(["用户 / 前端"])
@@ -31,15 +38,14 @@ flowchart TB
     para -->|"⑤ 扫集归集 + 提现广播（TSS 签名）"| btcd
 ```
 
-三个容易误解的点：
+两个要点：
 
-1. **桥跑在平行链上**，不在主链。主链只做 BTC 区块头的共识校验。
-2. **充值归因不用 OP_RETURN**：每个用户一个 `P2WSH(chain33地址, TSS群公钥)` 派生的 BTC 地址，链上按同一份派生认定归属。
-3. **必须有一个 Rust 侧车容器**。它干的不是“只给 USDT 用的活”，而是桥在比特币那一侧的全部工作：充值地址的脚本登记、扫集交易构造、桥的 BTC 侧账本。把它停掉，`para1` 不会崩，但充值地址不再发放、扫集不再发生 —— BTC 那条轨道就断了。
+1. **桥跑在平行链上**（`para1-4` 的 `[rpc.sub.light]`），不在主链。主链只做 BTC 区块头的共识校验。
+2. **每个用户一个专属充值地址**：按 `P2WSH(chain33地址, TSS群公钥)` 派生，链上按同一份派生认定归属。
 
 ## 二、跑起来
 
-**前置条件**：Docker Desktop（建议 ≥ 8 核 / 16 GB 内存 / 20 GB 空闲磁盘）、Go 1.23。**宿主机不需要装 Rust** —— 侧车在容器里编译。
+**前置条件**：Docker Desktop（建议 ≥ 8 核 / 16 GB 内存 / 20 GB 空闲磁盘）、Go 1.23。
 
 ```bash
 git clone <plugin 仓库> && cd plugin
@@ -52,9 +58,7 @@ make docker-compose proj=up dapp=rgbx
 make docker-compose-down proj=down dapp=rgbx
 ```
 
-起来后 `docker compose -p rgbx ps`：`main` 与 `btcd` 应为 `healthy`，`para1-4` 与 `rgb-sidecar` 为 `Up`。
-
-> 该分支默认只跑 BTC 轨道（`RGBX_BTC_ONLY=1`）。想连 RGB20/USDT 一起跑：`RGBX_BTC_ONLY=0 make docker-compose proj=run dapp=rgbx`。
+起来后 `docker compose -p rgbx ps`：`main` 与 `btcd` 应为 `healthy`，其余为 `Up`。
 
 ### 对外端口
 
@@ -70,14 +74,14 @@ make docker-compose-down proj=down dapp=rgbx
 
 ### 充值：领地址 → 付 BTC → 到账
 
-“领地址”**不是纯查询，是有副作用的写操作**：桥在那一刻开始 watch 这个脚本。所以地址必须**向桥要**，自己推导的桥不认。
+**领地址是写操作**：桥从那一刻开始 watch 这个地址。所以地址要向桥索取，不要自己推导。
 
 ```bash
 # ① 领该用户的专属充值地址
 curl -s "http://127.0.0.1:17001/rgbx/v1/btc-deposit-address?chain33Addr=<用户chain33地址>" | jq
 # → {"data":{"address":"bcrt1q…","pkScript":"…","userID":"…","spec":"P2WSHDepositSpecV1","watchSize":1}}
 
-# ② 用户付 BTC 到该地址（regtest 里用 btcd 造一笔即可，不需要 OP_RETURN）
+# ② 用户付 BTC 到该地址（regtest 里用 btcd 造一笔即可）
 
 # ③ 查到账
 docker exec rgbx-main-1 /root/chain33-cli --conf=chain33.test.toml \
@@ -86,13 +90,13 @@ docker exec rgbx-main-1 /root/chain33-cli --conf=chain33.test.toml \
 # ④ 桥的闲时 ticker 会自动把这笔 BTC 归集回主池（提现花的就是主池的钱）
 ```
 
-接口契约：**幂等**（同一用户重复请求返回同一地址，watch 集不增长）；缺参/非法地址 → `400`；方法不对 → `405`；**绝不返回一个没被 watch 的地址**。
+接口契约：**幂等**（同一用户重复请求返回同一地址，watch 集不增长）；缺参/非法地址 → `400`；方法不对 → `405`。
 
 链上记账符号是 **`XBTC`**（源资产符号 `BTC`，前缀 `X` 由 `crossChainAssetPrefix` 决定）。
 
 ### 链上流转：用户之间转 XBTC
 
-纯链上动作，不跨链：
+纯链上动作，不涉及 BTC 侧：
 
 ```bash
 docker exec rgbx-main-1 /root/chain33-cli --conf=chain33.test.toml \
@@ -113,7 +117,7 @@ docker exec rgbx-main-1 /root/chain33-cli --conf=chain33.test.toml \
 # ③ 之后全自动：TSS 签名 → 广播到 BTC → 确认 → 链上销毁
 ```
 
-> ⚠️ **符号不一致**：`transfer` 用链上符号 `XBTC`，`withdraw` 用源资产符号 `BTC`。这是当前实现的实际行为。
+> 符号写法：`transfer` 用 `XBTC`，`withdraw` 用 `BTC`。按各自命令抄即可。
 
 ## 四、前端要接的接口一览
 
@@ -126,41 +130,36 @@ docker exec rgbx-main-1 /root/chain33-cli --conf=chain33.test.toml \
 | 发起提现 | chain33 jrpc `rgbx withdraw` | `chain33-cli send rgbx withdraw -a … -f … -d … -s BTC -k …` |
 | 查提现进度 | chain33 jrpc `rgbx listPendingTx` | `chain33-cli rgbx listPendingTx` |
 
-**前端用 jrpc 时的关键提示**：`chain33-cli send …` 内部是**三步**，自己拼 jrpc 要照同一条链走 ——
-
-1. `Chain33.CreateTransaction`（`execer=rgbx`、`actionName` 取对应动作）
-2. `Chain33.SignRawTx`（用户私钥）
-3. `Chain33.SendTransaction`
+**用 jrpc 时的三步链**：`chain33-cli send …` 内部是三步，自己拼 jrpc 要照同一条链走 —— `Chain33.CreateTransaction`（`execer=rgbx`）→ `Chain33.SignRawTx`（用户私钥）→ `Chain33.SendTransaction`。
 
 ## 五、测试账号与地址
 
-演示环境里是固定的一组 regtest 账号（**仅本地演示用，无任何真实价值**）：
+演示环境里是固定的一组 regtest 账号（**仅本地演示用**）：
 
 | 用途 | 地址 |
 |---|---|
 | 演示用户（chain33 收款地址） | `14KEKbYtKKQm4wMthSK9J4La4nAiidGozt` |
-| 主链账户 1–4 | `1KSBd17H7ZK8iT37aJztFB22XGwsPTdwE4` / `1JRNjdEqp4LJ5fqycUBm9ayCKseeskgMKR` / `1NLHPEcbTWWxxU3dGUZBhayjrCHD3psX7k` / `1MCftFynyvG2F4ED5mdHYgziDxx6vDrScs` |
+| 主链账户 1–4 | `1KSBd17H7ZK8iT37aJztFB22XGwsPTdwE4` / `1JRNjdEqp4LJ5fqycUBm9ayCKSeeskgMKR` / `1NLHPEcbTWWxxU3dGUZBhayjrCHD3psX7k` / `1MCftFynyvG2F4ED5mdHYgziDxx6vDrScs` |
 | BTC 提现收款地址（regtest） | `bcrt1qnnwpfpljh5n8m3a8xtf3x5ayvhjjplxmhuexyh` |
 | btcd RPC | `127.0.0.1:18443`，`root` / `1314` |
 
-对应的私钥（`-k` 用）与 genesis key 见仓库内 `plugin/dapp/rgbx/cmd/ci/HANDOFF.md` §七。**这些私钥写在公开仓库里，只适用于 regtest，不要用到 testnet / mainnet。**
+签名私钥（`-k` 用）见仓库内 `plugin/dapp/rgbx/cmd/ci/HANDOFF.md` §六。**这些私钥写在公开仓库里，只适用于 regtest，不要用到 testnet / mainnet。**
 
 充值地址**不是固定的** —— 每个用户一个，向桥索取（见 §三）。
 
 ## 六、已知限制
 
-1. **只演示 BTC 轨道**：本分支不演示 RGB20/USDT（默认 `RGBX_BTC_ONLY=1` 跳过其场景断言）。USDT 要走通需要单独发行合约，不在本次交付范围。
-2. **这是 regtest 演示环境**：比特币是本地私链，块要自己挖；金额与确认数都是演示口径，不是生产参数。
+1. **演示范围是 BTC 跨链**：场景集覆盖充值 / 扫集 / 链上流转 / 提现 / BTC 头链护栏，不含 USDT 相关用例。
+2. **regtest 演示环境**：比特币是本地私链，块要自己挖；金额与确认数都是演示口径，不是生产参数。
 3. **`testSignPsbt` 在 regtest 下是打开的**（para 配置里）：该端点等于“用组私钥签任意内容”，**生产必须关**。
 4. **TSS share 与侧车账本不可再生**：丢了就永久失去签名能力。演示环境可以整环境重建，但按这个架构上生产前必须先落地备份方案。
-5. 提现与链上流转这两条复用旧场景的断言（P2WPKH 时代写法），已实测通过，但路径再变时需要重新核对。
 
 ## 七、出问题先看这里
 
 | 症状 | 先查 |
 |---|---|
-| `para1-4` 起来就退出 | 桥的 fail-closed 校验，日志搜 `refuse to start` |
-| 充值不到账 | 侧车在不在、地址是不是**向桥要的**、确认数够不够 |
+| `para1-4` 起来就退出 | 日志搜 `refuse to start` |
+| 充值不到账 | 地址是不是向桥要的、确认数够不够、服务是否都在 |
 | 提现卡住 | `rgbx listPendingTx`；`para1` 日志搜 `withdraw` |
 | 余额不涨 | 符号是不是写成了 `BTC`（应为 `XBTC`） |
 
@@ -175,4 +174,4 @@ docker logs --tail=200 rgbx-rgb-sidecar-1    # 侧车
 - 仓库内 `plugin/dapp/rgbx/cmd/ci/HANDOFF.md` —— 本文档的完整版（含测试私钥、排障细节）
 - 仓库内 `plugin/dapp/lightclient/rpc/lightclient/neutrino/CONFIG.md` —— 桥的配置项全表
 - 仓库内 `plugin/dapp/lightclient/rpc/lightclient/neutrino/BACKUP_RECOVERY.md` —— 备份/恢复
-- 本知识库 [RGB 协议与 sidecar 方案](rgb-sidecar-guide.md) —— 为什么是这么一个架构
+- 本知识库 [RGB 协议与 sidecar 方案](rgb-sidecar-guide.md) —— 这套架构的背景
