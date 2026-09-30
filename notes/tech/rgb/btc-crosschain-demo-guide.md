@@ -1,6 +1,9 @@
 # BTC 跨链演示环境：拿到代码到跑通演示
 
-> 交付分支：`demo/btc-crosschain`（plugin 仓库）。面向需要在本地把整套 BTC 跨链系统跑起来、并对接前端的工程师。
+> **代码仓库**：https://github.com/bysomeone/plugin （公开 fork，无需额外授权）
+> **交付分支**：`demo/btc-crosschain`
+>
+> 面向需要在本地把整套 BTC 跨链系统跑起来、并对接前端的工程师。
 
 ## 一句话
 
@@ -45,10 +48,10 @@ flowchart TB
 
 ## 二、跑起来
 
-**前置条件**：Docker Desktop（建议 ≥ 8 核 / 16 GB 内存 / 20 GB 空闲磁盘）、Go 1.23。
+**前置条件**：Docker Desktop（建议 ≥ 8 核 / 16 GB 内存 / 20 GB 空闲磁盘）、Go 1.23。构建时会自动拉取依赖（含 `bysomeone/chain33`，同为公开仓库），无需额外配置或授权。
 
 ```bash
-git clone <plugin 仓库> && cd plugin
+git clone https://github.com/bysomeone/plugin.git && cd plugin
 git checkout demo/btc-crosschain
 
 # 起环境（首次含编译，约 10–20 分钟；之后走缓存，几十秒）
